@@ -5,9 +5,10 @@ authors = ["Adam Lesperance <lespea@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-packed_simd = { version = "0", features = ["into_bits"] }
-num-format = "0"
+packed_simd = "0"
+num-format  = "0"
 
 [profile.release]
 lto = true
 codegen-units = 1
+debug = true

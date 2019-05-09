@@ -25,24 +25,34 @@ fn main() -> io::Result<()> {
     let mut sin = io::BufReader::with_capacity(1 << 23, sin);
 
     let mut n = 0;
-    while let Ok(read) = sin.read(&mut b) {
-        if read == 64 {
-            sums += newlines(b);
-            if n == u8::max_value() {
-                for i in 0..64 {
-                    total += sums.extract(i) as u64;
+    loop {
+        match sin.read(&mut b) {
+            Ok(read) => {
+                if read == 64 {
+                    sums += newlines(b);
+                    if n == u8::max_value() {
+                        for i in 0..64 {
+                            total += sums.extract(i) as u64;
+                        }
+                        sums &= 0;
+                        n = 0;
+                    } else {
+                        n += 1;
+                    }
+                } else if read == 0 {
+                    break;
+                } else {
+                    for &c in b[0..read].iter() {
+                        if c == b'\n' {
+                            total += 1
+                        }
+                    }
                 }
-                sums &= 0;
-                n = 0;
-            } else {
-                n += 1;
             }
-        } else if read == 0 {
-            break;
-        } else {
-            for &c in b[0..read].iter() {
-                if c == b'\n' {
-                    total += 1
+
+            Err(e) => {
+                if e.kind() != io::ErrorKind::Interrupted {
+                    return Err(e);
                 }
             }
         }
