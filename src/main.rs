@@ -22,7 +22,7 @@ fn main() -> io::Result<()> {
     let mut b = [0; 64];
     let sin = io::stdin();
     let sin = sin.lock();
-    let mut sin = io::BufReader::with_capacity(1 << 23, sin);
+    let mut sin = io::BufReader::with_capacity(1 << 13, sin);
 
     let mut n = 0;
     loop {
