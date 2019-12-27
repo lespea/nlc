@@ -9,10 +9,15 @@ fn print(total: &u64) {
     println!("{}", buf)
 }
 
+static NEWLINES: u8x64 = u8x64::splat(b'\n');
+
+static ONES: u8x64 = u8x64::splat(1);
+static ZERO: u8x64 = u8x64::splat(0);
+
 fn newlines(bytes: [u8; 64]) -> u8x64 {
     u8x64::from(bytes)
-        .eq(u8x64::splat(b'\n'))
-        .select(u8x64::splat(1), u8x64::splat(0))
+        .eq(NEWLINES)
+        .select(ONES, ZERO)
 }
 
 fn main() -> io::Result<()> {
@@ -22,7 +27,7 @@ fn main() -> io::Result<()> {
     let mut b = [0; 64];
     let sin = io::stdin();
     let sin = sin.lock();
-    let mut sin = io::BufReader::with_capacity(1 << 13, sin);
+    let mut sin = io::BufReader::with_capacity(1 << 23, sin);
 
     let mut n = 0;
     loop {
