@@ -5,7 +5,7 @@ authors = ["Adam Lesperance <lespea@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-packed_simd = "0"
+packed_simd = {version = "0", package = "packed_simd_2"}
 num-format  = "0"
 
 [profile.release]

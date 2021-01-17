@@ -15,9 +15,7 @@ static ONES: u8x64 = u8x64::splat(1);
 static ZERO: u8x64 = u8x64::splat(0);
 
 fn newlines(bytes: [u8; 64]) -> u8x64 {
-    u8x64::from(bytes)
-        .eq(NEWLINES)
-        .select(ONES, ZERO)
+    u8x64::from(bytes).eq(NEWLINES).select(ONES, ZERO)
 }
 
 fn main() -> io::Result<()> {
