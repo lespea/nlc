@@ -11,7 +11,7 @@ const AT_ONCE: usize = GROUP * 4;
 #[command(version, about, long_about = None)]
 #[command(group(
     ArgGroup::new("wantg")
-        .required(true)
+        .required(false) // Don't require since we'll use the default want char
         .multiple(false) // This is the default, ensuring one and only one
 ))]
 struct Opts {
