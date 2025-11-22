@@ -1,6 +1,6 @@
 [package]
 name = "nlc"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Adam Lesperance <lespea@gmail.com>"]
 edition = "2024"
 
@@ -10,7 +10,8 @@ num-format = "0.4"
 pulp = { version = "0.22", features = ["macro"] }
 
 [profile.release]
-lto = true
 codegen-units = 1
 debug = false
+lto = true
 panic = "abort"
+strip = true
