@@ -4,7 +4,7 @@ use std::io::{self, BufRead, Read};
 
 const LANES: usize = Scalar512b::U8_LANES;
 const GROUP: usize = LANES * u8::MAX as usize;
-const AT_ONCE: usize = GROUP * 4;
+const AT_ONCE: usize = GROUP * 8;
 
 /// Simple program to count the number of occurances of a byte in stdin
 #[derive(Parser, Debug)]
