@@ -1,72 +1,155 @@
-use num_format::{Buffer, Locale};
-use packed_simd::u8x64;
-use std::io;
-use std::io::Read;
+use clap::{ArgGroup, Parser};
+use pulp::{Scalar512b, Simd};
+use std::io::{self, BufRead, Read};
 
-fn print(total: &u64) {
+const LANES: usize = Scalar512b::U8_LANES;
+const GROUP: usize = LANES * u8::MAX as usize;
+const AT_ONCE: usize = GROUP * 4;
+
+/// Simple program to count the number of occurances of a byte in stdin
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+#[command(group(
+    ArgGroup::new("wantg")
+        .required(true)
+        .multiple(false) // This is the default, ensuring one and only one
+))]
+struct Opts {
+    /// The byte to count
+    #[arg(short, long, default_value_t = '\n', group = "wantg")]
+    want: char,
+
+    /// Helper to set want to null
+    #[arg(short = '0', long, group = "wantg")]
+    null: bool,
+
+    /// Helper to set want to a newline
+    #[arg(short = 'n', long, group = "wantg")]
+    newline: bool,
+
+    /// Comma separated output
+    #[arg(short, long)]
+    comma: bool,
+}
+
+fn main() -> std::result::Result<(), io::Error> {
+    let opts = Opts::parse();
+
+    let want;
+
+    if opts.null {
+        want = 0;
+    } else if opts.newline {
+        want = b'\n';
+    } else {
+        let c = opts.want;
+        if !c.is_ascii() {
+            panic!("only ascii characters supported");
+        }
+        want = c as u8;
+    }
+
+    let total = count_buf(io::stdin().lock(), want)?;
+
+    if opts.comma {
+        print_total(total);
+    } else {
+        println!("{}", total);
+    }
+
+    Ok(())
+}
+
+fn print_total(total: u64) {
+    use num_format::{Buffer, Locale};
+
     let mut buf = Buffer::default();
-    buf.write_formatted(total, &Locale::en);
+    buf.write_formatted(&total, &Locale::en);
+
     println!("{}", buf)
 }
 
-static NEWLINES: u8x64 = u8x64::splat(b'\n');
+fn count_buf<R>(reader: R, want: u8) -> Result<u64, io::Error>
+where
+    R: Read,
+{
+    let mut bin = io::BufReader::with_capacity(AT_ONCE, reader);
+    let mut total = 0u64;
 
-static ONES: u8x64 = u8x64::splat(1);
-static ZERO: u8x64 = u8x64::splat(0);
+    loop {
+        let b = bin.fill_buf()?;
+        let l = b.len();
 
-fn newlines(bytes: [u8; 64]) -> u8x64 {
-    u8x64::from(bytes).eq(NEWLINES).select(ONES, ZERO)
+        if l == 0 {
+            break;
+        }
+
+        total += count(b, want);
+        bin.consume(l);
+    }
+
+    Ok(total)
 }
 
-fn main() -> io::Result<()> {
+// the macro creates a `count` function
+#[pulp::with_simd(count = pulp::Arch::new())]
+#[inline(always)]
+fn count_with_simd<S: Simd>(simd: S, v: &[u8], want: u8) -> u64 {
+    let (head, tail) = S::as_simd_u8s(v);
+
+    let mut sum = simd.splat_u8s(0);
+    let add = simd.splat_u8s(1);
+
+    let mask = simd.splat_u8s(want);
+
     let mut total = 0u64;
-    let mut sums = u8x64::splat(0);
+    let mut bits = [0u8; 32];
 
-    let mut b = [0; 64];
-    let sin = io::stdin();
-    let sin = sin.lock();
-    let mut sin = io::BufReader::with_capacity(1 << 23, sin);
+    for (n, h) in head.iter().enumerate() {
+        let eq = simd.equal_u8s(*h, mask);
+        let seq = simd.transmute_u8s_m8s(eq);
+        let to_add = simd.and_u8s(seq, add);
 
-    let mut n = 0;
-    loop {
-        match sin.read(&mut b) {
-            Ok(read) => {
-                if read == 64 {
-                    sums += newlines(b);
-                    if n == u8::max_value() {
-                        for i in 0..64 {
-                            total += sums.extract(i) as u64;
-                        }
-                        sums &= 0;
-                        n = 0;
-                    } else {
-                        n += 1;
-                    }
-                } else if read == 0 {
-                    break;
-                } else {
-                    for &c in b[0..read].iter() {
-                        if c == b'\n' {
-                            total += 1
-                        }
-                    }
-                }
+        sum = simd.add_u8s(sum, to_add);
+
+        if n.is_multiple_of(u8::MAX as usize) {
+            simd.partial_store_u8s(&mut bits, sum);
+            for b in &mut bits {
+                total += *b as u64;
+                *b = 0;
             }
-
-            Err(e) => {
-                if e.kind() != io::ErrorKind::Interrupted {
-                    return Err(e);
-                }
-            }
+            sum = simd.splat_u8s(0);
         }
     }
 
-    if n > 0 {
-        for i in 0..64 {
-            total += sums.extract(i) as u64;
+    simd.partial_store_u8s(&mut bits, sum);
+    for b in bits {
+        total += b as u64;
+    }
+
+    for &h in tail {
+        if h == want {
+            total += 1;
         }
     }
 
-    print(&total);
-    Ok(())
+    total
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AT_ONCE, count_buf};
+
+    use std::io;
+
+    #[test]
+    fn no_overflow() {
+        let want = 7u8;
+        const SIZE: usize = AT_ONCE + 1;
+
+        let buf = [want; SIZE];
+        let c = io::Cursor::new(buf);
+
+        assert_eq!(SIZE, count_buf(c, want).unwrap() as usize);
+    }
 }
