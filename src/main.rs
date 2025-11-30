@@ -113,6 +113,7 @@ fn count_with_simd<S: Simd>(simd: S, v: &[u8], want: u8) -> u64 {
 
         sum = simd.add_u8s(sum, to_add);
 
+        n += 1;
         if n == u8::MAX {
             n = 0;
             simd.partial_store_u8s(&mut bits, sum);
@@ -121,8 +122,6 @@ fn count_with_simd<S: Simd>(simd: S, v: &[u8], want: u8) -> u64 {
                 *b = 0;
             }
             sum = simd.splat_u8s(0);
-        } else {
-            n += 1;
         }
     }
 
