@@ -105,20 +105,24 @@ fn count_with_simd<S: Simd>(simd: S, v: &[u8], want: u8) -> u64 {
     let mut total = 0u64;
     let mut bits = [0u8; 32];
 
-    for (n, h) in head.iter().enumerate() {
+    let mut n = 0u8;
+    for h in head.iter() {
         let eq = simd.equal_u8s(*h, mask);
         let seq = simd.transmute_u8s_m8s(eq);
         let to_add = simd.and_u8s(seq, add);
 
         sum = simd.add_u8s(sum, to_add);
 
-        if n.is_multiple_of(u8::MAX as usize) {
+        if n == u8::MAX {
+            n = 0;
             simd.partial_store_u8s(&mut bits, sum);
             for b in &mut bits {
                 total += *b as u64;
                 *b = 0;
             }
             sum = simd.splat_u8s(0);
+        } else {
+            n += 1;
         }
     }
 
