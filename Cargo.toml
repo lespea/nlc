@@ -1,6 +1,6 @@
 [package]
 name = "nlc"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Adam Lesperance <lespea@gmail.com>"]
 edition = "2024"
 
