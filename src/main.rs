@@ -35,19 +35,19 @@ struct Opts {
 fn main() -> std::result::Result<(), io::Error> {
     let opts = Opts::parse();
 
-    let want;
+    
 
-    if opts.null {
-        want = 0;
+    let want = if opts.null {
+        0
     } else if opts.newline {
-        want = b'\n';
+        b'\n'
     } else {
         let c = opts.want;
         if !c.is_ascii() {
             panic!("only ascii characters supported");
         }
-        want = c as u8;
-    }
+        c as u8
+    };
 
     let total = count_buf(io::stdin().lock(), want)?;
 
