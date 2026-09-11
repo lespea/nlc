@@ -35,8 +35,6 @@ struct Opts {
 fn main() -> std::result::Result<(), io::Error> {
     let opts = Opts::parse();
 
-    
-
     let want = if opts.null {
         0
     } else if opts.newline {
